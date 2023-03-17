@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+  "haskell-ffi",
+  "haskell-ffi-derive",
+]
