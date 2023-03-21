@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     io::{Error, Write},
     marker::PhantomData,
 };
@@ -90,4 +91,21 @@ pub fn marshall_to_haskell_var<Tag, T>(
         }
         Err(e) => panic!("{}", e),
     }
+}
+
+/// Wrapper around `marshall_to_haskell_var` that calls `format` for errors
+pub fn marshall_result_to_haskell_var<Tag, T, E>(
+    res: &Result<T, E>,
+    out: *mut u8,
+    out_len: &mut usize,
+    tag: PhantomData<Tag>,
+) where
+    T: ToHaskell<Tag>,
+    E: Display,
+{
+    let res: Result<&T, String> = match res {
+        Ok(t) => Ok(t),
+        Err(e) => Err(format!("{}", e)),
+    };
+    marshall_to_haskell_var(&res, out, out_len, tag);
 }
