@@ -119,18 +119,16 @@ macro_rules! fold_types {
 macro_rules! derive_simple_instances {
     ($t:ty) => {
         impl<Tag> ToHaskell<Tag> for $t {
-            fn to_haskell<W: Write>(
-                &self,
-                writer: &mut W,
-                _: PhantomData<Tag>,
-            ) -> Result<(), Error> {
-                self.serialize(writer)
+            fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
+                self.serialize(writer)?;
+                Ok(())
             }
         }
 
         impl<Tag> FromHaskell<Tag> for $t {
-            fn from_haskell(buf: &mut &[u8], _tag: PhantomData<Tag>) -> Result<Self, Error> {
-                <$t>::deserialize(buf)
+            fn from_haskell(buf: &mut &[u8], _tag: PhantomData<Tag>) -> Result<Self> {
+                let x = <$t>::deserialize(buf)?;
+                Ok(x)
             }
         }
     };
@@ -141,18 +139,15 @@ macro_rules! derive_simple_instances {
 macro_rules! derive_array_instances {
     ($sz : literal) => {
         impl<Tag, T: ToHaskell<Tag>> ToHaskell<Tag> for [T; $sz] {
-            fn to_haskell<W: Write>(
-                &self,
-                writer: &mut W,
-                _: PhantomData<Tag>,
-            ) -> Result<(), Error> {
+            fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
                 let tagged: [&Haskell<Tag, T>; $sz] = self.each_ref().map(tag_ref);
-                tagged.serialize(writer)
+                tagged.serialize(writer)?;
+                Ok(())
             }
         }
 
         impl<Tag, T: FromHaskell<Tag> + Default + Copy> FromHaskell<Tag> for [T; $sz] {
-            fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
+            fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
                 let tagged: [Haskell<Tag, T>; $sz] = BorshDeserialize::deserialize(buf)?;
                 Ok(tagged.map(untag_val))
             }
@@ -166,14 +161,15 @@ macro_rules! derive_array_instances {
 macro_rules! derive_tuple_instances {
     ($($ts:ident),*) => {
         impl<Tag, $($ts: ToHaskell<Tag> ),* > ToHaskell<Tag> for ( $($ts ),* ) {
-            fn to_haskell<W: Write>(&self, writer: &mut W,_: PhantomData<Tag>) -> Result<(), Error> {
+            fn to_haskell<W: Write>(&self, writer: &mut W,_: PhantomData<Tag>) -> Result<()> {
                 let tagged: ( $(&Haskell<Tag, $ts> ),* ) = map_tuple_ref!( [ $($ts),* ], self, tag_ref );
-                tagged.serialize(writer)
+                tagged.serialize(writer)?;
+                Ok(())
             }
         }
 
         impl<Tag, $($ts: FromHaskell<Tag> ),* > FromHaskell<Tag> for ( $($ts ),* ) {
-            fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
+            fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
                 let tagged: ( $(Haskell<Tag, $ts> ),* ) = BorshDeserialize::deserialize(buf)?;
                 Ok( map_tuple!( [ $($ts),* ], tagged, untag_val ) )
             }

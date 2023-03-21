@@ -4,7 +4,7 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     hash::{Hash, Hasher},
-    io::{Error, Write},
+    io::Write,
     marker::PhantomData,
 };
 
@@ -100,14 +100,20 @@ impl<Tag, T: Copy> Copy for Haskell<Tag, T> {}
 *******************************************************************************/
 
 impl<Tag, T: ToHaskell<Tag>> BorshSerialize for Haskell<Tag, T> {
-    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
-        self.0.to_haskell(writer, PhantomData)
+    fn serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        match self.0.to_haskell(writer, PhantomData) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        }
     }
 }
 
 impl<Tag, T: FromHaskell<Tag>> BorshDeserialize for Haskell<Tag, T> {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let tag: PhantomData<Tag> = PhantomData;
-        T::from_haskell(buf, tag).map(tag_val)
+        match T::from_haskell(buf, tag).map(tag_val) {
+            Ok(x) => Ok(x),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        }
     }
 }

@@ -1,9 +1,6 @@
-use std::{
-    io::{Error, ErrorKind},
-    marker::PhantomData,
-};
+use std::{io::ErrorKind, marker::PhantomData};
 
-use crate::HaskellSize;
+use crate::{error::Error, HaskellSize};
 
 /*******************************************************************************
   Main class definition
@@ -23,7 +20,10 @@ pub trait FromHaskell<Tag>: Sized {
         let mut slice_mut = slice;
         let result = Self::from_haskell(&mut slice_mut, tag)?;
         if !slice_mut.is_empty() {
-            return Err(Error::new(ErrorKind::InvalidData, ERROR_NOT_ALL_BYTES_READ));
+            return Err(Box::new(std::io::Error::new(
+                ErrorKind::InvalidData,
+                ERROR_NOT_ALL_BYTES_READ,
+            )));
         }
         Ok(result)
     }

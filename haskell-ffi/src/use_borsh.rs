@@ -1,10 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use std::{
-    io::{Error, Write},
-    marker::PhantomData,
-};
+use std::{io::Write, marker::PhantomData};
 
-use crate::{FromHaskell, ToHaskell};
+use crate::{error::Result, FromHaskell, ToHaskell};
 
 /// Newtype wrapper for defaulting to `borsh` for `ToHaskell`/`FromHaskell`
 ///
@@ -32,14 +29,16 @@ pub fn unwrap_use_borsh_ref<T>(use_borsh: &UseBorsh<T>) -> &T {
 *******************************************************************************/
 
 impl<Tag, T: BorshSerialize> ToHaskell<Tag> for UseBorsh<T> {
-    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<(), Error> {
-        unwrap_use_borsh_ref(self).serialize(writer)
+    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
+        unwrap_use_borsh_ref(self).serialize(writer)?;
+        Ok(())
     }
 }
 
 impl<Tag, T: BorshDeserialize> FromHaskell<Tag> for UseBorsh<T> {
-    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
-        T::deserialize(buf).map(UseBorsh)
+    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
+        let x = T::deserialize(buf).map(UseBorsh)?;
+        Ok(x)
     }
 }
 
