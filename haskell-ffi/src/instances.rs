@@ -7,13 +7,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    io::{Error, ErrorKind, Write},
+    io::{ErrorKind, Write},
     marker::PhantomData,
 };
 
 use crate::{
     derive_array_instances, derive_simple_instances, derive_tuple_instances,
     deriving_via::{tag_ref, untag_val, Haskell},
+    error::Result,
     from_haskell::FromHaskell,
     map_tuple, map_tuple_ref,
     to_haskell::ToHaskell,
@@ -125,14 +126,15 @@ derive_tuple_instances!(
 *******************************************************************************/
 
 impl<Tag, T: ToHaskell<Tag>> ToHaskell<Tag> for Vec<T> {
-    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<(), Error> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
         let tagged: Vec<&Haskell<Tag, T>> = self.iter().map(tag_ref).collect();
-        tagged.serialize(writer)
+        tagged.serialize(writer)?;
+        Ok(())
     }
 }
 
 impl<Tag, T: FromHaskell<Tag>> FromHaskell<Tag> for Vec<T> {
-    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
+    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
         let tagged: Vec<Haskell<Tag, T>> = BorshDeserialize::deserialize(buf)?;
         Ok(tagged.into_iter().map(untag_val).collect())
     }
@@ -147,10 +149,11 @@ where
     K: Eq + PartialOrd + Hash + ToHaskell<Tag>,
     V: ToHaskell<Tag>,
 {
-    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<(), Error> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
         let tagged: HashMap<&Haskell<Tag, K>, &Haskell<Tag, V>> =
             self.iter().map(|(k, v)| (tag_ref(k), tag_ref(v))).collect();
-        tagged.serialize(writer)
+        tagged.serialize(writer)?;
+        Ok(())
     }
 }
 
@@ -159,7 +162,7 @@ where
     K: Eq + Hash + FromHaskell<Tag>,
     V: FromHaskell<Tag>,
 {
-    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
+    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
         let tagged: HashMap<Haskell<Tag, K>, Haskell<Tag, V>> = BorshDeserialize::deserialize(buf)?;
         Ok(tagged
             .into_iter()
@@ -176,9 +179,10 @@ impl<Tag, T> ToHaskell<Tag> for HashSet<T>
 where
     T: Eq + PartialOrd + Hash + ToHaskell<Tag>,
 {
-    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<(), Error> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
         let tagged: HashSet<&Haskell<Tag, T>> = self.iter().map(tag_ref).collect();
-        tagged.serialize(writer)
+        tagged.serialize(writer)?;
+        Ok(())
     }
 }
 
@@ -186,7 +190,7 @@ impl<Tag, T> FromHaskell<Tag> for HashSet<T>
 where
     T: Eq + Hash + FromHaskell<Tag>,
 {
-    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
+    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
         let tagged: HashSet<Haskell<Tag, T>> = BorshDeserialize::deserialize(buf)?;
         Ok(tagged.into_iter().map(untag_val).collect())
     }
@@ -197,14 +201,15 @@ where
 *******************************************************************************/
 
 impl<Tag, T: ToHaskell<Tag>> ToHaskell<Tag> for Option<T> {
-    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<(), Error> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
         let tagged: Option<&Haskell<Tag, T>> = self.as_ref().map(tag_ref);
-        tagged.serialize(writer)
+        tagged.serialize(writer)?;
+        Ok(())
     }
 }
 
 impl<Tag, T: FromHaskell<Tag>> FromHaskell<Tag> for Option<T> {
-    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self, Error> {
+    fn from_haskell(buf: &mut &[u8], _: PhantomData<Tag>) -> Result<Self> {
         let tagged: Option<Haskell<Tag, T>> = BorshDeserialize::deserialize(buf)?;
         Ok(tagged.map(untag_val))
     }
@@ -220,13 +225,14 @@ impl<Tag, T: FromHaskell<Tag>> FromHaskell<Tag> for Option<T> {
   the result of some Rust-side operation.
 *******************************************************************************/
 
-impl<Tag, T: ToHaskell<Tag>, E: ToHaskell<Tag>> ToHaskell<Tag> for Result<T, E> {
-    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<(), Error> {
-        let tagged: Result<&Haskell<Tag, T>, &Haskell<Tag, E>> = match self {
+impl<Tag, T: ToHaskell<Tag>, E: ToHaskell<Tag>> ToHaskell<Tag> for core::result::Result<T, E> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, _: PhantomData<Tag>) -> Result<()> {
+        let tagged: core::result::Result<&Haskell<Tag, T>, &Haskell<Tag, E>> = match self {
             Ok(t) => Ok(tag_ref(t)),
             Err(e) => Err(tag_ref(e)),
         };
-        tagged.serialize(writer)
+        tagged.serialize(writer)?;
+        Ok(())
     }
 }
 
@@ -244,19 +250,22 @@ impl<Tag> HaskellSize<Tag> for bool {
 }
 
 impl<Tag> ToHaskell<Tag> for bool {
-    fn to_haskell<W: Write>(&self, writer: &mut W, tag: PhantomData<Tag>) -> Result<(), Error> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, tag: PhantomData<Tag>) -> Result<()> {
         let as_u8: u8 = if *self { 1 } else { 0 };
         as_u8.to_haskell(writer, tag)
     }
 }
 
 impl<Tag> FromHaskell<Tag> for bool {
-    fn from_haskell(buf: &mut &[u8], tag: PhantomData<Tag>) -> Result<Self, Error> {
+    fn from_haskell(buf: &mut &[u8], tag: PhantomData<Tag>) -> Result<Self> {
         let as_u8 = u8::from_haskell(buf, tag)?;
         match as_u8 {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(Error::new(ErrorKind::InvalidData, "Invalid bool")),
+            _ => Err(Box::new(std::io::Error::new(
+                ErrorKind::InvalidData,
+                "Invalid bool",
+            ))),
         }
     }
 }

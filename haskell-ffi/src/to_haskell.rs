@@ -1,10 +1,6 @@
-use std::{
-    fmt::Display,
-    io::{Error, Write},
-    marker::PhantomData,
-};
+use std::{fmt::Display, io::Write, marker::PhantomData};
 
-use crate::HaskellSize;
+use crate::{error::Result, HaskellSize};
 
 /*******************************************************************************
   Main class definition
@@ -23,9 +19,9 @@ pub trait ToHaskell<Tag> {
     /// `solana-sdk-haskell` library can define a `ToHaskell` instance for
     /// `Keypair`, defined in `solana-sdk`, as long as it uses a tag `Solana`
     /// defined locally in the `solana-haskell-sdk` package.
-    fn to_haskell<W: Write>(&self, writer: &mut W, tag: PhantomData<Tag>) -> Result<(), Error>;
+    fn to_haskell<W: Write>(&self, writer: &mut W, tag: PhantomData<Tag>) -> Result<()>;
 
-    fn to_haskell_vec(&self, tag: PhantomData<Tag>) -> Result<Vec<u8>, Error> {
+    fn to_haskell_vec(&self, tag: PhantomData<Tag>) -> Result<Vec<u8>> {
         let mut result = Vec::with_capacity(DEFAULT_SERIALIZER_CAPACITY);
         self.to_haskell(&mut result, tag)?;
         Ok(result)
@@ -33,7 +29,7 @@ pub trait ToHaskell<Tag> {
 }
 
 impl<Tag, T: ToHaskell<Tag>> ToHaskell<Tag> for &T {
-    fn to_haskell<W: Write>(&self, writer: &mut W, tag: PhantomData<Tag>) -> Result<(), Error> {
+    fn to_haskell<W: Write>(&self, writer: &mut W, tag: PhantomData<Tag>) -> Result<()> {
         (*self).to_haskell(writer, tag)
     }
 }
@@ -95,7 +91,7 @@ pub fn marshall_to_haskell_var<Tag, T>(
 
 /// Wrapper around `marshall_to_haskell_var` that calls `format` for errors
 pub fn marshall_result_to_haskell_var<Tag, T, E>(
-    res: &Result<T, E>,
+    res: &core::result::Result<T, E>,
     out: *mut u8,
     out_len: &mut usize,
     tag: PhantomData<Tag>,
@@ -103,7 +99,7 @@ pub fn marshall_result_to_haskell_var<Tag, T, E>(
     T: ToHaskell<Tag>,
     E: Display,
 {
-    let res: Result<&T, String> = match res {
+    let res: core::result::Result<&T, String> = match res {
         Ok(t) => Ok(t),
         Err(e) => Err(format!("{}", e)),
     };
