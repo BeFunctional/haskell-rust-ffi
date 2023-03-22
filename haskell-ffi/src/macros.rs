@@ -188,3 +188,15 @@ macro_rules! derive_size_tuple_instance {
         }
     };
 }
+
+/// Derive `HaskellMaxSize` instance for tuple with the specified type arguments.
+#[macro_export]
+macro_rules! derive_max_size_tuple_instance {
+    ($($ts:ident),*) => {
+        impl<Tag, $($ts: HaskellMaxSize<Tag> ),* > HaskellMaxSize<Tag> for ( $($ts),* ) {
+            fn haskell_max_size(tag: PhantomData<Tag>) -> usize {
+                fold_types!( [ $($ts),* ], haskell_max_size, tag, +, 0)
+            }
+        }
+    };
+}

@@ -8,6 +8,7 @@ pub mod bincode;
 pub mod deriving_via;
 pub mod error;
 pub mod from_haskell;
+pub mod haskell_max_size;
 pub mod haskell_size;
 pub mod to_haskell;
 pub mod use_borsh;
