@@ -1,6 +1,6 @@
 use std::{fmt::Display, io::Write, marker::PhantomData};
 
-use crate::{error::Result, HaskellSize};
+use crate::{error::Result, haskell_max_size::HaskellMaxSize, HaskellSize};
 
 /*******************************************************************************
   Main class definition
@@ -61,6 +61,38 @@ where
     } else {
         let mut out_len_copy = out_len;
         marshall_to_haskell_var(t, out, &mut out_len_copy, tag);
+        if out_len_copy != expected_len {
+            panic!(
+                "marshall_to_haskell_fixed: got buffer of expected size {}, but needed {}; bug in HaskellSize instance?",
+                expected_len, out_len_copy
+            );
+        }
+    }
+}
+
+/// Marshall value with encoding of known maximum size
+///
+/// The `out_len` parameter is only used to verify that the Haskell-side and
+/// the Rust side agree on the length of the encoding.
+pub fn marshall_to_haskell_max<Tag, T>(t: &T, out: *mut u8, out_len: usize, tag: PhantomData<Tag>)
+where
+    T: HaskellMaxSize<Tag> + ToHaskell<Tag>,
+{
+    let max_len: usize = T::haskell_max_size(tag);
+    if out_len != max_len {
+        panic!(
+            "marshall_to_haskell_max: expected buffer of size {}, but got {}",
+            max_len, out_len
+        )
+    } else {
+        let mut out_len_copy = out_len;
+        marshall_to_haskell_var(t, out, &mut out_len_copy, tag);
+        if out_len_copy > max_len {
+            panic!(
+                "marshall_to_haskell_max: required size {} exceeds maximum {}; bug in HaskellMaxSize instance?",
+                out_len_copy, max_len
+            );
+        }
     }
 }
 
