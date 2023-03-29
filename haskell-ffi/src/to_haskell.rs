@@ -157,19 +157,35 @@ where
     }
 }
 
+/// Get pointer to the data held by the vector
+///
+/// User code should not normally need to call this directly
+/// (it is called by the Haskell function @fromExternalBorsh@).
 #[no_mangle]
 pub extern "C" fn haskell_ffi_external_ptr(vec: *mut Vec<u8>) -> *const u8 {
     let vec: &Vec<u8> = unsafe { &*vec };
     vec.as_ptr()
 }
 
+/// Get length of the data held by the vector
+///
+/// User code should not normally need to call this directly
+/// (it is called by the Haskell function @fromExternalBorsh@).
 #[no_mangle]
 pub extern "C" fn haskell_ffi_external_len(vec: *mut Vec<u8>) -> usize {
     let vec: &Vec<u8> = unsafe { &*vec };
     vec.len()
 }
 
+/// Free the vector
+///
+/// The second argument is a pointer to the data held by the vector (see
+/// `haskell_ffi_external_ptr`). It is not actually used by this function; it is
+/// an argument only to match the Haskell @FinalizerEnvPtr@ type.
+///
+/// User code should not normally need to call this directly
+/// (it is called by the Haskell function @fromExternalBorsh@).
 #[no_mangle]
-pub extern "C" fn haskell_ffi_external_free(vec: *mut Vec<u8>) {
+pub extern "C" fn haskell_ffi_external_free(vec: *mut Vec<u8>, _ptr: *const u8) {
     let _vec = unsafe { Box::from_raw(vec) };
 }
