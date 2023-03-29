@@ -137,3 +137,39 @@ pub fn marshall_result_to_haskell_var<Tag, T, E>(
     };
     marshall_to_haskell_var(&res, out, out_len, tag);
 }
+
+/*******************************************************************************
+  Using Rust-allocated buffer
+*******************************************************************************/
+
+/// Marshall to a Rust-side allocated buffer
+///
+/// The result pointer should be treated as opaque; it is _not_ a pointer to the
+/// data (use `haskell_ffi_external_ptr` for that). When the buffer is no longer
+/// required, it should be freed using `haskell_ffi_external_free`.
+pub fn marshall_to_haskell_external<Tag, T>(t: &T, tag: PhantomData<Tag>) -> *mut Vec<u8>
+where
+    T: ToHaskell<Tag>,
+{
+    match t.to_haskell_vec(tag) {
+        Ok(vec) => Box::into_raw(Box::new(vec)),
+        Err(e) => panic!("{}", e),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn haskell_ffi_external_ptr(vec: *mut Vec<u8>) -> *const u8 {
+    let vec: &Vec<u8> = unsafe { &*vec };
+    vec.as_ptr()
+}
+
+#[no_mangle]
+pub extern "C" fn haskell_ffi_external_len(vec: *mut Vec<u8>) -> usize {
+    let vec: &Vec<u8> = unsafe { &*vec };
+    vec.len()
+}
+
+#[no_mangle]
+pub extern "C" fn haskell_ffi_external_free(vec: *mut Vec<u8>) {
+    let _vec = unsafe { Box::from_raw(vec) };
+}
